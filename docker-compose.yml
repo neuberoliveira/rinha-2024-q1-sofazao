@@ -10,23 +10,29 @@ services:
     volumes:
       - ./app:/app
     ports:
-      - '${API1_PORT}:8080'
+      - '${DOCKER_API1_PORT}:8080'
     depends_on:
       - database
     environment:
-      DB_HOSTNAME: database
-      NODE_ENV: development
-      MONGODB_URI: couchdb://database:5984/${DATABASE_NAME}
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASS: ${DATABASE_PASS}
+      DATABASE_PORT: ${DATABASE_PORT}
   api2:
     <<: *api
     hostname: api2
     container_name: api2
     ports:
-      - '${API2_PORT}:8080'
+      - '${DOCKER_API2_PORT}:8080'
     environment:
-      DB_HOSTNAME: database
-      NODE_ENV: development
-      MONGODB_URI: couchdb://database:5984/${DATABASE_NAME}
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASS: ${DATABASE_PASS}
+      DATABASE_PORT: ${DATABASE_PORT}
 
   nginx:
     image: nginx:1.25.3-alpine
@@ -37,18 +43,16 @@ services:
       - api1
       - api2
     ports:
-      - '${LB_PORT}:9999'
+      - '${DOCKER_LB_PORT}:9999'
 
   database:
     image: couchdb:3.3
     container_name: database
     ports:
-      - '${DATABASE_PORT}:5984'
+      - '${DOCKER_DB_PORT}:5984'
     volumes:
       - .docker/data/database:/data/db
       - .docker/config/couchdb/couchdb.ini:/opt/couchdb/etc/local.d/999-docker.ini
-    # command: >
-    #   sh -c "sleep 5 && curl -X PUT http://${DATABASE_USER}:${DATABASE_PASS}@couchdb:5984/rinhabank2"
     environment:
       COUCHDB_USER: ${DATABASE_USER}
       COUCHDB_PASSWORD: ${DATABASE_PASS}
