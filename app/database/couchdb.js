@@ -56,7 +56,7 @@ function update(entry){
 }
 
 function createDatabase(){
-  console.log('create database')
+  // console.log('create database')
   return wrapperDb({
     method: 'PUT',
     body: `{\"id\":\"${DATABASE_NAME}\",\"name\":\"${DATABASE_NAME}\"}`,
@@ -64,7 +64,7 @@ function createDatabase(){
 }
 
 function createUser({id, limit}){
-  console.log('create user')
+  // console.log('create user')
   return wrapperDb({
     id,
     method: 'PUT',

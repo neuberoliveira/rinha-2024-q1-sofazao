@@ -1,7 +1,17 @@
 const database = require('../database/couchdb.js')
 
+function validateBody({tipo, descricao, valor}){
+	const descLen = descricao.length
+	const amount = parseInt(valor)
+	return (
+		(tipo==='c' || tipo==='d') &&
+		(descLen>=1 && descLen<=10) &&
+		(amount>=0)
+	)
+}
+
 async function transactionHandler(context){
-	const response = {
+	const result = {
 		status: 200,
 		headers: {},
 		response: '',
@@ -9,53 +19,62 @@ async function transactionHandler(context){
 	
 	const id = context.id
 	const body = context.body
-	/*
-	{
-	    "valor": 1000,
-	    "tipo" : "c",
-	    "descricao" : "descricao"
+	
+	if(!validateBody(body)){
+		result.status = 400
+		result.response = 'manda os dados direito ae!!!!'
+		return result
 	}
-	"ultimas_transacoes": [
-    {
-      "valor": 10,
-      "tipo": "c",
-      "descricao": "descricao",
-      "realizada_em": "2024-01-17T02:34:38.543030Z"
-    },
-    {
-      "valor": 90000,
-      "tipo": "d",
-      "descricao": "descricao",
-      "realizada_em": "2024-01-17T02:34:38.543030Z"
-    }
-  ]
-	*/
+	
+	const type = body.tipo
+	const amount = parseInt(body.valor)
+	const description = body.descricao
+	
+	const isCredit = type==='c'
+	const isDebit = type==='d'
+	
 	const entry = await database.find(id)
 	
 	if(entry.error){
-		response.status = 404
-		return response
+		result.status = 404
+		return result
 	}
 	
 	
-	
-	const result = {
-		limite: entry.limite,
-		saldo: entry.total,
+	let newAmount = 0
+	if(isCredit){
+		newAmount = entry.total + amount
+	}	
+	if(isDebit){
+		newAmount = entry.total - amount
 	}
 	
-	entry.ultimas_transacoes.push({
-      "valor": 10,
-      "tipo": "c",
-      "descricao": "descricao",
+	const minLimit = -Math.abs(entry.limite)
+	if(newAmount < minLimit){
+		result.status = 422
+		result.response = '💰 💸'
+		return result
+	}
+	
+	entry.total = newAmount
+	entry.ultimas_transacoes.unshift({
+      "valor": amount,
+      "tipo": type,
+      "descricao": description,
       "realizada_em": (new Date()).toISOString()
     })
-	await database.update(entry)
+    entry.ultimas_transacoes = entry.ultimas_transacoes.slice(0, 10)	
+	
+	const response = {
+		limite: entry.limite,
+		saldo: entry.total,
+	}	
+	database.update(entry)
 	
 	
-	response.headers = {'content-type': 'application/json'}
-	response.response = JSON.stringify(result)
-	return response
+	result.headers = {'content-type': 'application/json'}
+	result.response = JSON.stringify(response)
+	return result
 }
 
 module.exports = transactionHandler

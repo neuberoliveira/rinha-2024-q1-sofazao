@@ -30,19 +30,36 @@ const server = http.createServer(async (req, res) => {
   }
   
   let result
+  let bodyRaw = ''
+  
+  
+  if(isTransaction && isMethodPost){
+    req.on('data', (chunk) => {
+      bodyRaw += chunk.toString();
+    });
+
+    req.on('end', async () => {
+      if (req.headers['content-type'] === 'application/json') {
+        try {
+          context.body = JSON.parse(bodyRaw);
+          result = await transactionHandler(context)
+          successResponse(result, res)
+          return
+        } catch (error) {
+          console.error('Error parsing JSON:', error);
+          errorResponse(400, 'Invalid JSON data')
+          return
+        }
+      }
+    })
+    
+  }
+  
   if(isStatement && isMethodGet){
     result = await statementHandler(context)
-  }else if(isTransaction && isMethodPost){
-    result = await transactionHandler(context)
-  }
-  
-  if(result){
-    res.writeHead(result.status, result.headers)
-    res.end(result.response)
+    successResponse(result, res)
     return
   }
-  
-  errorResponse(res)
 })
 
 
@@ -51,7 +68,19 @@ server.listen(DOCKER_API1_PORT, () => {
   console.log(`Server running on http://localhost:${DOCKER_API1_PORT}`)
 })
 
-function errorResponse(res){
-  res.writeHead(404, {'Content-Type': 'text/plain'})
-  res.end()
+function errorResponse(res, message='', code=404){
+  // console.log('error')
+  res.writeHead(code, {'Content-Type': 'text/plain'})
+  res.end(message)
+}
+
+function successResponse(result, res){
+  if(!result){
+    console.log('ops!')
+    return
+  }
+  
+  // console.log('success')
+  res.writeHead(result.status, result.headers)
+  res.end(result.response)
 }
